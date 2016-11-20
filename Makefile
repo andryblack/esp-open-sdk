@@ -20,8 +20,14 @@ TOP = $(PWD)
 SHELL = /bin/bash
 PATCH = patch -b -N
 UNZIP = unzip -q -o
+SED = sed
 VENDOR_SDK_ZIP = $(VENDOR_SDK_ZIP_$(VENDOR_SDK))
 VENDOR_SDK_DIR = $(VENDOR_SDK_DIR_$(VENDOR_SDK))
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    SED = gsed
+endif
 
 VENDOR_SDK_ZIP_2.0.0 = ESP8266_NONOS_SDK_V2.0.0_16_08_10.zip
 VENDOR_SDK_DIR_2.0.0 = ESP8266_NONOS_SDK_V2.0.0_16_08_10
@@ -95,15 +101,17 @@ ifeq ($(STANDALONE),y)
 	@echo "Installing vendor SDK libs into toolchain sysroot"
 	@cp -Rf sdk/lib/* $(TOOLCHAIN)/xtensa-lx106-elf/sysroot/usr/lib/
 	@echo "Installing vendor SDK linker scripts into toolchain sysroot"
-	@sed -e 's/\r//' sdk/ld/eagle.app.v6.ld | sed -e s@../ld/@@ >$(TOOLCHAIN)/xtensa-lx106-elf/sysroot/usr/lib/eagle.app.v6.ld
-	@sed -e 's/\r//' sdk/ld/eagle.rom.addr.v6.ld >$(TOOLCHAIN)/xtensa-lx106-elf/sysroot/usr/lib/eagle.rom.addr.v6.ld
+	@$(SED) -e 's/\r//' sdk/ld/eagle.app.v6.ld | sed -e s@../ld/@@ >$(TOOLCHAIN)/xtensa-lx106-elf/sysroot/usr/lib/eagle.app.v6.ld
+	@$(SED) -e 's/\r//' sdk/ld/eagle.rom.addr.v6.ld >$(TOOLCHAIN)/xtensa-lx106-elf/sysroot/usr/lib/eagle.rom.addr.v6.ld
 endif
 
 clean: clean-sdk
+	-rm -rf crosstool-NG/ct-ng
 	make -C crosstool-NG clean MAKELEVEL=0
 	-rm -rf crosstool-NG/.build/src
 	-rm -f crosstool-NG/local-patches/gcc/4.8.5/1000-*
 	-rm -rf $(TOOLCHAIN)
+
 
 clean-sdk:
 	rm -rf $(VENDOR_SDK_DIR)
@@ -128,8 +136,8 @@ $(TOOLCHAIN)/bin/xtensa-lx106-elf-gcc: crosstool-NG/ct-ng
 
 _toolchain:
 	./ct-ng xtensa-lx106-elf
-	sed -r -i.org s%CT_PREFIX_DIR=.*%CT_PREFIX_DIR="$(TOOLCHAIN)"% .config
-	sed -r -i s%CT_INSTALL_DIR_RO=y%"#"CT_INSTALL_DIR_RO=y% .config
+	$(SED) -r -i.org s%CT_PREFIX_DIR=.*%CT_PREFIX_DIR="$(TOOLCHAIN)"% .config
+	$(SED) -r -i s%CT_INSTALL_DIR_RO=y%"#"CT_INSTALL_DIR_RO=y% .config
 	cat ../crosstool-config-overrides >> .config
 	./ct-ng build
 
